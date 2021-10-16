@@ -1,10 +1,10 @@
 import csv
 import datetime
 import os
+import time
 
-from models import (Base, session, 
-                    Product, engine)
 from cleaners import clean_price, clean_date, clean_id, clean_quantity
+from models import Base, session, Product, engine
 
 
 def menu():
@@ -210,7 +210,6 @@ def create_backup():
         for product in products:
             writer.writerow({fieldnames[0]:product.product_name, fieldnames[1]:product.product_price, fieldnames[2]:product.product_quantity, fieldnames[3]:product.date_updated})
     print("\nBackup successfully created!")    
-    input("Press enter to go back to the main menu ")
 
 
 def import_backup():
@@ -224,24 +223,38 @@ def import_backup():
             data = csv.reader(csvfile)
             next(data)
             for row in data:
-                print(row)
-                name = row[0]
-                price = int(row[1])
-                quantity = int(row[2])
-                date_updated = datetime.date.fromisoformat(row[3])
-                new_product = Product(product_name=name, product_price=price, product_quantity=quantity, date_updated=date_updated)
-                session.add(new_product)
+                product_in_db = session.query(Product).filter(Product.product_name==row[0]).one_or_none()
+                if product_in_db == None:
+                    name = row[0]
+                    price = int(row[1])
+                    quantity = int(row[2])
+                    date_updated = datetime.date.fromisoformat(row[3])
+                    new_product = Product(product_name=name, product_price=price, product_quantity=quantity, date_updated=date_updated)
+                    session.add(new_product)
+                    print(new_product)
+                else:
+                    if product_in_db.date_updated < datetime.date.fromisoformat(row[3]):
+                        product_in_db.product_name = row[0]
+                        product_in_db.product_price = int(row[1])
+                        product_in_db.product_quantity = int(row[2])
+                        product_in_db.date_updated = datetime.date.fromisoformat(row[3])
+                        session.commit()
+                        print(f'{product_in_db.product_name} updated')
+            session.commit()
     else: 
         print('There is no backup.cvs file present, make sure it is located in the right directory')
+    input("Press enter to go back to the main menu ")
 
-
-def list_products(list = session.query(Product).all()):
+def list_products(list = None):
     '''
     prints a passed in list as an argument to the console
     if no list is provided all the products in the database will be printed
     '''
+    if list == None:
+        list = session.query(Product).all()
     for product in list: 
         print(f'{product.product_id} - {product.product_name}')
+    time.sleep(1.5)
 
 
 def search_product():
