@@ -236,11 +236,18 @@ def import_backup():
 
 
 def list_products(list = session.query(Product).all()):
+    '''
+    prints a passed in list as an argument to the console
+    if no list is provided all the products in the database will be printed
+    '''
     for product in list: 
         print(f'{product.product_id} - {product.product_name}')
 
 
 def search_product():
+    '''
+    Asks the user for a searchterm and will query the database to list any matches
+    '''
     while True:
         search_term = input("What product are you looking for? ")
         search = session.query(Product).filter(Product.product_name.like(f"%{search_term}%")).all()
@@ -254,6 +261,10 @@ def search_product():
 
 
 def app():
+    '''
+    main entry point of the app, it will call the main menu to be shown
+    and call a next function whenever the users has made a choice
+    '''
     app_running = True
     while app_running:
         choice = menu()
