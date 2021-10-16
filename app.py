@@ -17,7 +17,6 @@ def menu():
             \rV) View a single product
             \rA) Add a new Product
             \rB) Make a backup of the inventory
-
             \nI) Import data from a backup.csv file
             \rL) List all products
             \rS) Search product
@@ -32,6 +31,9 @@ def menu():
 
 
 def product_menu():
+    '''
+    Gives the user a submenu to make changes to the product
+    '''
     while True: 
         print('''
             \r**** PRODUCT Menu ****
@@ -83,7 +85,7 @@ def print_single_product(product):
     \rQuantity: {product.product_quantity}
     \rPrice:    ${product.product_price/100}
     \rUpdated:  {product.date_updated.strftime("%m/%d/%Y")}
-    \r* * * * * * * * * * *''')
+    \r* * * * * * * * * * * *''')
 
 
 def view_single_product():
@@ -109,7 +111,6 @@ def view_single_product():
         delete_product(product)
     elif choice == '2':
         update_product(product)
-    return product
 
 
 def add_new_product():
@@ -145,6 +146,9 @@ def add_new_product():
 
 
 def update_product(product):
+    '''
+    Updates an existing product that is being passed in as an argument
+    '''
     product.product_name = edit_check("Name", product.product_name)
     product.product_quantity = edit_check("Quantity", product.product_quantity)
     product.product_price = edit_check("Price", product.product_price)
@@ -158,6 +162,10 @@ def update_product(product):
 
 
 def edit_check(column_name, current_value):
+    '''
+    Shows the user the current value and requests a new value
+    While making sure that the given input is passing the cleaning functions
+    '''
     print(f'\n* * * EDIT {column_name} * * *')
     if column_name == 'Price':
         print(f'Current Value: ${current_value/100}')
@@ -179,6 +187,9 @@ def edit_check(column_name, current_value):
 
 
 def delete_product(product):
+    ''' 
+    Deletes the product that is being passed as an argument (after confirmation).
+    '''
     delete_confirm = input("Are you sure you want to delete this product? Y/N ")
     if delete_confirm.lower() == 'y':
         session.delete(product)
@@ -224,6 +235,24 @@ def import_backup():
         print('There is no backup.cvs file present, make sure it is located in the right directory')
 
 
+def list_products(list = session.query(Product).all()):
+    for product in list: 
+        print(f'{product.product_id} - {product.product_name}')
+
+
+def search_product():
+    while True:
+        search_term = input("What product are you looking for? ")
+        search = session.query(Product).filter(Product.product_name.like(f"%{search_term}%")).all()
+        if search:
+            print(f"\nSearch results for {search_term}:")
+            list_products(search)
+            if input("Would you like to search for something else? Y/N ").lower() != 'y':
+                return
+        else:
+            print(f"No results found for {search_term}")
+
+
 def app():
     app_running = True
     while app_running:
@@ -236,6 +265,10 @@ def app():
             create_backup()
         elif choice == 'i':
             import_backup()
+        elif choice == 'l':
+            list_products()
+        elif choice == 's':
+            search_product()
         else:
             print("Goodbye!")
             app_running = False
