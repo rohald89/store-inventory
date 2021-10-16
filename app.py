@@ -4,7 +4,7 @@ import os
 
 from models import (Base, session, 
                     Product, engine)
-from cleaners import clean_price, clean_date, clean_id
+from cleaners import clean_price, clean_date, clean_id, clean_quantity
 
 
 def menu():
@@ -17,11 +17,29 @@ def menu():
             \rV) View a single product
             \rA) Add a new Product
             \rB) Make a backup of the inventory
+
             \nI) Import data from a backup.csv file
-            \rD) Delete product
+            \rL) List all products
+            \rS) Search product
             \rE) Exit''')
         choice = input("What would you like to do? ").lower()
-        if choice in ['v', 'a', 'b', 'e', 'i', 'd']:
+        if choice in ['v', 'a', 'b', 'e', 'i', 'l', 's']:
+            return choice
+        else:
+            input('''
+                \rPlease choose one of the options above..
+                \rPress enter to try again''')
+
+
+def product_menu():
+    while True: 
+        print('''
+            \r**** PRODUCT Menu ****
+            \r1) Delete this product
+            \r2) Update this Product
+            \r3) Back to main menu''')
+        choice = input("\nWhat would you like to do? ").lower()
+        if choice in ['1', '2', '3']:
             return choice
         else:
             input('''
@@ -41,7 +59,7 @@ def import_csv():
             if product_in_db == None:
                 name = row[0]
                 price = clean_price(row[1])
-                quantity = row[2]
+                quantity = clean_quantity(row[2])
                 date_updated = clean_date(row[3])
                 new_product = Product(product_name=name, product_price=price, product_quantity=quantity, date_updated=date_updated)
                 session.add(new_product)
@@ -51,7 +69,7 @@ def import_csv():
                 if product_in_db.date_updated < clean_date(row[3]):
                     product_in_db.product_name = row[0]
                     product_in_db.product_price = clean_price(row[1])
-                    product_in_db.product_quantity = row[2]
+                    product_in_db.product_quantity = clean_quantity(row[2])
                     product_in_db.date_updated = clean_date(row[3])
                     session.commit()
                     print(f'{product_in_db.product_name} updated')
@@ -60,12 +78,12 @@ def import_csv():
 
 def print_single_product(product):
     print(f'''
-    * * * PRODUCT: {product.product_id} * * *
-    \nName: {product.product_name}
+    \n* * * PRODUCT: {product.product_id} * * *
+    \nName:     {product.product_name}
     \rQuantity: {product.product_quantity}
-    \rPrice: {product.product_price}
-    \rUpdated: {product.date_updated}
-    ''')
+    \rPrice:    ${product.product_price/100}
+    \rUpdated:  {product.date_updated.strftime("%m/%d/%Y")}
+    \r* * * * * * * * * * *''')
 
 
 def view_single_product():
@@ -86,6 +104,11 @@ def view_single_product():
             id_error = False
     product = session.query(Product).filter(Product.product_id == id_choice).first()
     print_single_product(product)
+    choice = product_menu()
+    if choice == '1':
+        delete_product(product)
+    elif choice == '2':
+        update_product(product)
     return product
 
 
@@ -95,7 +118,12 @@ def add_new_product():
     When a productname is already present in the database this will be overwritten
     '''
     name = input("Product name: ")
-    quantity = input("Quantity: ")
+    quantity_error = True
+    while quantity_error:
+        quantity = input("Quantity: ")
+        quantity = clean_quantity(quantity)
+        if type(quantity) == int:
+            quantity_error = False
     price_error = True
     while price_error:
         price = input("Price (Ex: $3.99): ")
@@ -116,21 +144,47 @@ def add_new_product():
     session.commit()
 
 
-def delete_menu():
-    while True:
-        print('''
-            \n**** DELETE PRODUCT ****
-            \r1) Delete product by id
-            \r2) Search by name
-            \r3) Delete everything! 💥
-            \rE) Exit''')
-        choice = input("What would you like to do? ").lower()
-        if choice in ['1', '2', '3', 'e']:
-            return choice
-        else:
-            input('''
-                \rPlease choose one of the options above..
-                \rPress enter to try again''')
+def update_product(product):
+    product.product_name = edit_check("Name", product.product_name)
+    product.product_quantity = edit_check("Quantity", product.product_quantity)
+    product.product_price = edit_check("Price", product.product_price)
+    product.date_updated = datetime.datetime.now().date()
+
+    session.commit()
+    print_single_product(product)
+    input('''
+    \rChanges have been saved!
+    \rPress enter to go back to the main menu''')
+
+
+def edit_check(column_name, current_value):
+    print(f'\n* * * EDIT {column_name} * * *')
+    if column_name == 'Price':
+        print(f'Current Value: ${current_value/100}')
+    else:
+        print(f'Current Value: {current_value}')
+    if column_name == 'Quantity' or column_name == 'Price':
+        while True:
+            change = input('What would you like to change this value to? ')
+            if column_name == 'Quantity':
+                change = clean_quantity(change)
+                if type(change) == int:
+                    return change
+            if column_name == 'Price':
+                change = clean_price(change)
+                if type(change) == int:
+                    return change
+    else:
+        return input("What would you like to change this to? ")
+
+
+def delete_product(product):
+    delete_confirm = input("Are you sure you want to delete this product? Y/N ")
+    if delete_confirm.lower() == 'y':
+        session.delete(product)
+        session.commit()
+        print("\nProduct successfully deleted")
+        input("Press enter to go back to the main menu")
 
 
 def create_backup():
@@ -182,14 +236,6 @@ def app():
             create_backup()
         elif choice == 'i':
             import_backup()
-        elif choice == 'd':
-            del_choice = delete_menu()
-            if del_choice == "1":
-                product = view_single_product()
-                delete_confirm = input("Are you sure you want to delete this product? Y/N ")
-                if delete_confirm.lower() == 'y':
-                    session.delete(product)
-                    session.commit()
         else:
             print("Goodbye!")
             app_running = False

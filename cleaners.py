@@ -60,3 +60,17 @@ def clean_id(id_str, options):
                 \rPress enter to try again.
                 \r********************''')
             return
+
+
+def clean_quantity(quantity_str):
+    try:
+        product_quantity = int(quantity_str)
+    except ValueError:
+        input('''
+                \n**** QUANTITY ERROR ****
+                \rThe quantity should be a number.
+                \rPress enter to try again.
+                \r********************''')
+        return
+    else:
+        return product_quantity
